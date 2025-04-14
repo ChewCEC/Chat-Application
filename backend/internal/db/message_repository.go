@@ -5,23 +5,27 @@ import (
 	"log"
 	"time"
 
-	"github.com/ChewCEC/chat-app/internal/models"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
+
+	"github.com/ChewCEC/chat-app/internal/models"
+
 )
 
-const (
-	DATABASE   = "chat_app"
-	COLLECTION = "messages"
-)
 
-// GetMessagesCollection returns the messages collection
-func GetMessagesCollection() *mongo.Collection {
-	return MongoClient.Database(DATABASE).Collection(COLLECTION)
+
+func GetCollection(coll string) *mongo.Collection {
+
+	err := InitMongo()
+	if err != nil {
+		log.Fatalf("Error initializing MongoDB: %v", err)
+		
+	}
+
+	return MongoClient.Database("Chat-Information").Collection(coll)
 }
 
-// SaveMessage saves a message to the database
 func SaveMessage(message models.Message) error {
 	// Set timestamp if not already set
 	if message.Timestamp.IsZero() {
@@ -31,7 +35,9 @@ func SaveMessage(message models.Message) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	collection := GetMessagesCollection()
+	log.Printf("Attempting to save message: %+v", message)
+
+	collection := GetCollection("messages")
 	_, err := collection.InsertOne(ctx, message)
 	if err != nil {
 		log.Printf("Error saving message: %v", err)
@@ -41,12 +47,11 @@ func SaveMessage(message models.Message) error {
 	return nil
 }
 
-// GetRecentMessages retrieves the most recent messages from the database
 func GetRecentMessages(limit int64) ([]models.Message, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	collection := GetMessagesCollection()
+	collection := GetCollection("messages")
 
 	// Set options to sort by timestamp in descending order and limit results
 	findOptions := options.Find().
@@ -65,6 +70,8 @@ func GetRecentMessages(limit int64) ([]models.Message, error) {
 		log.Printf("Error decoding messages: %v", err)
 		return nil, err
 	}
+
+	log.Printf("Retrieved %d messages", len(messages))
 
 	// Reverse the order to get chronological order (oldest first)
 	for i, j := 0, len(messages)-1; i < j; i, j = i+1, j-1 {

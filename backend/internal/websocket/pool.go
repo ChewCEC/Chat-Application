@@ -2,13 +2,17 @@ package websocket
 
 import (
 	"fmt"
+	"time"
+
+	"github.com/ChewCEC/chat-app/internal/models"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type Pool struct {
 	Register   chan *Client
 	Unregister chan *Client
 	Clients    map[*Client]bool
-	Broadcast  chan Message
+	Broadcast  chan models.Message
 }
 
 func NewPool() *Pool {
@@ -16,7 +20,7 @@ func NewPool() *Pool {
 		Register:   make(chan *Client),
 		Unregister: make(chan *Client),
 		Clients:    make(map[*Client]bool),
-		Broadcast:  make(chan Message),
+		Broadcast:  make(chan models.Message),
 	}
 }
 
@@ -25,10 +29,13 @@ func (pool *Pool) Start() {
 		select {
 		case client := <-pool.Register:
 			pool.Clients[client] = true
-
+			ID := primitive.NewObjectID()
 			for client, _ := range pool.Clients {
-				client.Coon.WriteJSON(Message{Type: 1, Body: "New User joined chat"})
-				client.Coon.WriteJSON(Message{Type: 1, Body: fmt.Sprintf("client %s", client.ID)})
+				client.Coon.WriteJSON(
+					models.Message{
+						ID:        ID,
+						Content:   "New User Joined...",
+						Timestamp: time.Now()})
 
 			}
 
@@ -36,7 +43,12 @@ func (pool *Pool) Start() {
 			delete(pool.Clients, client)
 
 			for client, _ := range pool.Clients {
-				client.Coon.WriteJSON(Message{Type: 1, Body: "User left chat"})
+				client.Coon.WriteJSON(
+					models.Message{
+						ID:        client.ID,
+						Content:   "User Disconnected...",
+						Timestamp: time.Now()})
+				fmt.Printf("%d users connected\n", len(pool.Clients))
 			}
 
 		case message := <-pool.Broadcast:
