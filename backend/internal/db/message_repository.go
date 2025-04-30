@@ -32,13 +32,8 @@ func SaveMessage(message models.Message) error {
 		message.Timestamp = time.Now()
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	log.Printf("Attempting to save message: %+v", message)
-
 	collection := GetCollection("messages")
-	_, err := collection.InsertOne(ctx, message)
+	_, err := collection.InsertOne(context.Background(), message)
 	if err != nil {
 		log.Printf("Error saving message: %v", err)
 		return err
@@ -48,8 +43,6 @@ func SaveMessage(message models.Message) error {
 }
 
 func GetRecentMessages(limit int64) ([]models.Message, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
 
 	collection := GetCollection("messages")
 
@@ -58,15 +51,15 @@ func GetRecentMessages(limit int64) ([]models.Message, error) {
 		SetSort(bson.D{{Key: "timestamp", Value: -1}}).
 		SetLimit(limit)
 
-	cursor, err := collection.Find(ctx, bson.D{}, findOptions)
+	cursor, err := collection.Find(context.Background(), bson.D{}, findOptions)
 	if err != nil {
 		log.Printf("Error retrieving messages: %v", err)
 		return nil, err
 	}
-	defer cursor.Close(ctx)
+	defer cursor.Close(context.Background())
 
 	var messages []models.Message
-	if err = cursor.All(ctx, &messages); err != nil {
+	if err = cursor.All(context.Background(), &messages); err != nil {
 		log.Printf("Error decoding messages: %v", err)
 		return nil, err
 	}
