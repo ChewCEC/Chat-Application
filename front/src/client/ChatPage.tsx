@@ -5,10 +5,25 @@ import { useState, useRef, useEffect } from "react"
 import useWebSocket from "./useWebSocket"
 import "./ChatPage.css"
 
+interface Message {
+  id: string;
+  content: string;
+  timestamp: string;
+}
+
 const ChatPage = () => {
   const { messages, sendMessage } = useWebSocket("ws://localhost:8080/ws")
   const [input, setInput] = useState("")
   const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  // Parse messages from JSON string to object
+  const parsedMessages = messages.map(msg => {
+    try {
+      return JSON.parse(msg) as Message;
+    } catch (e) {
+      return { content: msg } as Message;
+    }
+  });
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -37,11 +52,14 @@ const ChatPage = () => {
       </div>
 
       <div className="chat-messages">
-        {messages.map((msg, index) => (
-          <div key={index} className={`message ${index % 2 === 0 ? "sent" : "sent"}`}>
-            <div className="message-content">{msg}</div>
+        {parsedMessages.map((msg, index) => (
+          <div key={msg.id || index} className={`message ${index % 2 === 0 ? "sent" : "sent"}`}>
+            <div className="message-content">{msg.content}</div>
             <div className="message-time">
-              {new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+              {new Date(msg.timestamp || Date.now()).toLocaleTimeString([], { 
+                hour: "2-digit", 
+                minute: "2-digit" 
+              })}
             </div>
           </div>
         ))}
